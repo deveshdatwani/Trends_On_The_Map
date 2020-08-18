@@ -8,20 +8,15 @@ import pandas as pd
 def load_map_with_trends():
 
 	m = folium.Map(tiles='Stamen Terrain',  zoom_start=3, location=[20.76, 79])
-	country_cordinates = pd.read_csv('country_cordinates.csv')
+	country_cordinates = pd.read_csv('trending_cities.csv')
 	tooltip = 'See Trends'
-	lat = country_cordinates['latitude']
-	lon = country_cordinates['longitude']
-	country = country_cordinates['country']
-    
-	for i, country in enumerate(country):
-
+	lat = country_cordinates['lat']
+	lon = country_cordinates['lng']
+	city = country_cordinates['city']
+	for i, city in enumerate(city):
 		try:
-
-			folium.Marker([lat[i], lon[i]], popup = '<i>This is {}<i>'.format(country), tooltip = tooltip).add_to(m)
-		
+			folium.Marker([lat[i], lon[i]], popup = '<i>This is {}<i>'.format(city), tooltip = tooltip).add_to(m)
 		except: pass
-
 	m.save('trends_on_the_map.html')
 
 	return None
