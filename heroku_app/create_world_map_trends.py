@@ -14,9 +14,10 @@ def load_map_with_trends():
 	lat = country_cordinates['lat']
 	lon = country_cordinates['lng']
 	city = country_cordinates['city']
+	trends = country_cordinates['trends']
 	for i, city in enumerate(city):
 		try:
-			folium.Marker([lat[i], lon[i]], popup = '<i>This is {}<i>'.format(city), tooltip = tooltip).add_to(m)
+			folium.Marker([lat[i], lon[i]], popup = '<i>{}<i>'.format(trends[i]), tooltip = tooltip).add_to(m)
 		except: pass
 	m.save('templates/trends_on_the_map.html')
 
