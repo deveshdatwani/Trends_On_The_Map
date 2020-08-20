@@ -4,7 +4,11 @@ import json
 import requests
 import pandas as pd
 from find_trends import find_current_trends
+from apscheduler.schedulers.blocking import BlockingScheduler
 
+sched = BlockingScheduler()
+
+@sched.scheduled_job('interval', minutes=16)
 def load_map_with_trends():
 
 	find_current_trends()
@@ -15,6 +19,7 @@ def load_map_with_trends():
 	lon = country_cordinates['lng']
 	city = country_cordinates['city']
 	trends = country_cordinates['trends']
+	#print('Marking cities')
 	for i, city in enumerate(city):
 		try:
 			folium.Marker([lat[i], lon[i]], popup = '<i>{}<i>'.format(trends[i]), tooltip = tooltip).add_to(m)
@@ -23,6 +28,4 @@ def load_map_with_trends():
 
 	return None
 
-if __name__ == '__main__':
-
-	load_map_with_trends()
+sched.start()
