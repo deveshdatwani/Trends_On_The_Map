@@ -1,83 +1,83 @@
 import os
-#from boto.s3.connection import S3Connection
 import requests
 import pandas as pd
 from time import sleep
+import mysql.connector
+from apscheduler.schedulers.blocking import BlockingScheduler
 
-def find_current_trends():
+sched = BlockingScheduler()
 
-    try:
+@sched.scheduled_job('interval', minutes=15)
+def find_trends():
     
-        bearer_token = os.environ['BEARER_TOKEN']
-        with open('inter.txt', 'r') as f:
-            inter = f.read()
-            print(inter)
-            f.close()
-            inter = int(inter)
+    bearer = os.environ['BEARER_TOKEN']
+    print('trying to connect to server')
+    connector = mysql.connector.connect(user='be5852720363b4', password='936fcbd3', host='us-cdbr-east-02.cleardb.com', database='heroku_4ac3cade96b682b')
+
+    if connector.is_connected():    
+        cursor = connector.cursor(buffered=True)
+        query = 'SELECT * FROM iterator WHERE holder = "it_holder" '
+        cursor.execute(query)
+        response = cursor.fetchone()
+        i = response[1]
         
-        #print('The txt file contains the number {}'.format(inter))
-        split_end = int(inter) * 70
-        #print('split end = {}'.format(split_end))
-        split_start = int(split_end) - 70
-        #print('split start = {}'.format(split_start))
-        url = 'https://api.twitter.com/1.1/trends/available.json'
-        bearer = os.environ['BEARER_TOKEN']
-        response = requests.get(url=url, headers = {'authorization': 'Bearer ' + bearer})
-        response = response.json()
-        trending_cities = []
-        print('Available trends acquired')
-
-        for trend in response:
-            trending_cities.append([trend['name'], trend['country'], trend['woeid']])
-
-        #print(trending_cities)
-        trending_cities_df = pd.DataFrame(trending_cities, columns=['city','country','woeid'])
-        city_coordinates = pd.read_csv('worldcities.csv')
-        city_coordinates = city_coordinates[['city','country','lat','lng']]
-        trending_cities_df = trending_cities_df.merge(city_coordinates,on=['country','city'])
-        #print(trending_cities_df)
-        woeids = trending_cities_df['woeid'].values
-        trends_in_woeids = []
-        url2 = 'https://api.twitter.com/1.1/trends/place.json'
-        woeids = woeids[split_start:split_end]
-
-        for woeid in woeids:
-            param = {'id':woeid}
-            response = requests.get(url = url2, headers = {'authorization': 'Bearer ' + bearer}, params = param).json()
-            #print('Acquiring trends for {}'.format(woeid))
-            trends_in_woeids.append(response)	
-            #print(response)
-
-        print('All trends acquired')
-        trending_seventy_in_woeids = trends_in_woeids
-        l1 = []
-        #print(len(trending_seventy_in_woeids))
-        print(trending_seventy_in_woeids)
-
-        for i in trending_seventy_in_woeids:
-            l2 = []
-            for j in i[0]['trends']:
-                l2.append(j['name'])
-            l1.append(l2)
-
-        #print(l1)
-        trending_seventy = trending_cities_df[split_start:split_end]
-        trending_seventy.insert(5, 'trends', l1)
-        trending_seventy.to_csv('trending_cities.csv')
-        print(trending_seventy[0])
-        #print(inter) 
-
-        if inter > 4:
-            with open('inter.txt', 'w') as f:
-                f.truncate(0)
-                f.write('{}'.format('1'))
-                f.close()
+        if i > 4:
+            response = 1
         else:
-            inter += 1
-            print(inter)
-            with open('inter.txt', 'w') as f:
-                f.truncate(0)
-                f.write('{}'.format(str(inter)))
-                f.close()
-    except:
-        pass
+            response = response[1] + 1
+        
+        print('This is update iterator {}'.format(response))
+        second_query = "UPDATE iterator SET it = {} WHERE holder = 'it_holder' ".format(response)
+        cursor.execute(second_query)
+        connector.commit()
+        third_query = 'SELECT * FROM trendsincities'
+        third_response = cursor.execute(third_query)
+        response = cursor.fetchall()
+        print('iterator token accessed and updated. Fetched trendingcities')
+        print(i)
+
+    split_end = i * 70
+    split_start = split_end - 70
+
+    trends = [x[6] for x in response]
+    woeids = [x[3] for x in response] 
+    woeids_copy = woeids
+    woeids = woeids[split_start:split_end]
+    trends_in_woeids = []
+    url = 'https://api.twitter.com/1.1/trends/place.json'
+    l2 = []
+
+    for woeid in woeids:
+        param = {'id' : woeid}
+        response = requests.get(url = url, headers = {'authorization': 'Bearer ' + bearer}, params = param).json()
+        l1 = []
+        
+        try:
+            for i in response[0]['trends']:
+                l1.append(i['name'])
+            l2.append(l1)
+
+    print('All trends acquired')
+
+    if len(l2) != 0:
+        trends[split_start:split_end] = l2
+    
+    for num, i in enumerate(trends):
+        if type(i) == list:
+             trends[num] = ' '.join(i)
+
+    trends = tuple(trends)
+    connector = mysql.connector.connect(user='be5852720363b4', password='936fcbd3', host='us-cdbr-east-02.cleardb.com', database='heroku_4ac3cade96b682b')
+    cursor = connector.cursor(buffered=True)
+
+    for i, trend in enumerate(trends):
+        cursor.execute('UPDATE trendsincities SET trends = %s WHERE woeid = %s', (trend, woeids_copy[i]))
+
+        connector.commit()
+    print('Done')
+    cursor.close()
+    connector.close()
+
+    return None
+
+sched.start()
