@@ -4,7 +4,11 @@ Visualizing is an effective way of making data intelligible. This project is aim
 # Dependencies
 
 folium
+
 pandas
+
 Flask
+
 requests
+
 These are the few required to run this code on your local host.
